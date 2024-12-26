@@ -1,0 +1,101 @@
+<?php
+// Подключение к базе данных
+require 'db_connection.php';
+
+header("Content-Type: application/json");
+
+// Получение параметра action
+$action = $_GET['action'] ?? '';
+
+switch ($action) {
+    case 'login':
+        try {
+            // Получение данных из POST-запроса
+            $data = json_decode(file_get_contents("php://input"), true);
+            $username = $data['username'] ?? '';
+            $password = $data['password'] ?? '';
+
+            if (empty($username) || empty($password)) {
+                echo json_encode(['status' => 'error', 'message' => 'Имя пользователя и пароль обязательны']);
+                exit;
+            }
+
+            // Проверка пользователя в базе данных
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($user && password_verify($password, $user['password'])) {
+                echo json_encode(['status' => 'success', 'message' => 'Успешный вход', 'user_id' => $user['id']]);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Неверные имя пользователя или пароль']);
+            }
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'get_links':
+        try {
+            $user_id = $_GET['user_id'] ?? null;
+
+            if (!$user_id) {
+                echo json_encode(['status' => 'error', 'message' => 'ID пользователя обязателен']);
+                exit;
+            }
+
+            $stmt = $pdo->prepare("SELECT * FROM links WHERE user_id = ? ORDER BY created_at DESC");
+            $stmt->execute([$user_id]);
+            $links = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode(['status' => 'success', 'links' => $links]);
+        } catch (Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        break;
+
+    case 'shorten':
+        try {
+            $data = json_decode(file_get_contents("php://input"), true);
+            $user_id = $data['user_id'] ?? null;
+            $long_url = $data['long_url'] ?? '';
+
+            if (!$user_id || empty($long_url)) {
+                echo json_encode(['status' => 'error', 'message' => 'ID пользователя и длинная ссылка обязательны']);
+                exit;
+            }
+
+            // Генерация уникального короткого кода
+            $short_code = generateShortCode();
+            
+            // Проверка на уникальность
+            while (!isUniqueShortCode($pdo, $short_code)) {
+                $short_code = generateShortCode();
+            }
+
+            // Сохранение в базу данных
+            $stmt = $pdo->prepare("INSERT INTO links (user_id, long_url, short_code) VALUES (?, ?, ?)");
+            $stmt->execute([$user_id
+
+    default:
+        echo json_encode(['status' => 'error', 'message' => 'Неизвестное действие']);
+        break;
+}
+
+// Функция для генерации короткого кода
+function generateShortCode($length = 6) {
+    $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $short_code = '';
+    for ($i = 0; $i < $length; $i++) {
+        $short_code .= $characters[random_int(0, strlen($characters) - 1)];
+    }
+    return $short_code;
+}
+
+// Функция для проверки уникальности короткого кода
+function isUniqueShortCode($pdo, $short_code) {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM links WHERE short_code = ?");
+    $stmt->execute([$short_code]);
+    return $stmt->fetchColumn() == 0;
+}
+?>

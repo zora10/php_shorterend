@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: #fff;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        table th {
+            background-color: #f4f4f4;
+        }
+        .short-url {
+            color: blue;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .status-active {
+            color: green;
+            font-weight: bold;
+        }
+        .status-disabled {
+            color: red;
+            font-weight: bold;
+        }
+        form {
+            margin: 20px 0;
+            text-align: center;
+        }
+        input[type="url"] {
+            padding: 10px;
+            width: 60%;
+            font-size: 16px;
+        }
+        select {
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Your Shortened Links</h1>
+    <form id="shorten-form">
+        <input type="url" id="original-url" placeholder="Enter long URL" required>
+        <select id="domain-select"></select>
+        <button type="submit">Shorten</button>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Original URL</th>
+                <th>Short URL</th>
+                <th>Clicks</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="links-table-body">
+            <!-- Links will be loaded dynamically -->
+        </tbody>
+    </table>
+    <script>
+        const form = document.getElementById('shorten-form');
+        const originalUrlInput = document.getElementById('original-url');
+        const tableBody = document.getElementById('links-table-body');
+        const domainSelect = document.getElementById('domain-select');
+
+        // Check if user is logged in
+        const user_id = localStorage.getItem('user_id');
+        if (!user_id) {
+            alert('You are not logged in. Redirecting to login page.');
+            window.location.href = 'login.html';
+        }
+
+        // Load links
+        async function loadLinks() {
+            try {
+                const response = await fetch(`/url_shortener/api.php?action=get_links&user_id=${user_id}`);
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    tableBody.innerHTML = '';
+                    data.links.forEach(link => {
+                        const row = `
+                            <tr>
+                                <td>${link.id}</td>
+                                <td>${link.long_url}</td>
+                                <td><a href="http://${link.domain}/${link.short_code}" class="short-url" target="_blank">${link.domain}/${link.short_code}</a></td>
+                                <td>${link.clicks}</td>
+                                <td class="${link.active ? 'status-active' : 'status-disabled'}">
+                                    ${link.active ? 'Active' : 'Disabled'}
+                                </td>
+                            </tr>
+                        `;
+                        tableBody.innerHTML += row;
+                    });
+                } else {
+                    alert(data.message || 'Failed to load links.');
+                }
+            } catch (error) {
+                console.error('Error loading links:', error);
+                alert('An error occurred while loading links.');
+            }
+        }
+
+        // Load domains
+        async function loadDomains() {
+            try {
+                const response = await fetch('/url_shortener/api.php?action=get_domains');
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    domainSelect.innerHTML = '';
+                    data.domains.forEach(domain => {
+                        const option = document.createElement('option');
+                        option.value = domain.domain_name;
+                        option.textContent = domain.domain_name;
+                        domainSelect.appendChild(option);
+                    });
+                } else {
+                    alert(data.message || 'Failed to load domains.');
+                }
+            } catch (error) {
+                console.error('Error loading domains:', error);
+                alert('An error occurred while loading domains.');
+            }
+        }
+
+        // Add new link
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const originalUrl = originalUrlInput.value;
+            const selectedDomain = domainSelect.value;
+
+            try {
+                const response = await fetch('/url_shortener/api.php?action=shorten', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: user_id,
+                        long_url: originalUrl,
+                        domain: selectedDomain
+                    })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    alert('Link successfully shortened!');
+                    loadLinks();
+                    originalUrlInput.value = '';
+                } else {
+                    alert(data.message || 'Failed to shorten link.');
+                }
+            } catch (error) {
+                console.error('Error creating link:', error);
+                alert('An error occurred while shortening the link.');
+            }
+        });
+
+        // Load links and domains on page load
+        loadLinks();
+        loadDomains();
+    </script>
+</body>
+</html>

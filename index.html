@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+</head>
+<body>
+    <h1>Login</h1>
+    <form id="login-form">
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+    </form>
+
+    <h1>Register</h1>
+    <form id="register-form">
+        <input type="text" id="reg-username" placeholder="Username" required>
+        <input type="password" id="reg-password" placeholder="Password" required>
+        <button type="submit">Register</button>
+    </form>
+
+    <h1>Shorten URL</h1>
+    <form id="shorten-form">
+        <input type="url" id="long-url" placeholder="Enter long URL" required>
+        <button type="submit">Shorten</button>
+    </form>
+
+    <h2>Your Links</h2>
+    <ul id="links-list"></ul>
+
+    <script>
+        const apiUrl = 'http://77.73.66.179/url_shortener/api.php';
+
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+
+            const response = await fetch(`${apiUrl}?action=register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const result = await response.json();
+            alert(result.success || result.error);
+        });
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const response = await fetch(`${apiUrl}?action=login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const result = await response.json();
+            if (result.success) {
+                localStorage.setItem('user_id', result.user_id);
+                alert('Login successful!');
+            } else {
+                alert(result.error);
+            }
+        });
+
+        document.getElementById('shorten-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const longUrl = document.getElementById('long-url').value;
+            const userId = localStorage.getItem('user_id');
+
+            const response = await fetch(`${apiUrl}?action=shorten`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, long_url: longUrl })
+            });
+            const result = await response.json();
+            alert(result.short_url || result.error);
+        });
+    </script>
+</body>
+</html>

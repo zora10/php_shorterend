@@ -1,0 +1,10 @@
+RewriteEngine On
+RewriteBase /url_shortener/
+
+# Исключаем существующие файлы и папки
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Перенаправляем всё остальное на api.php
+RewriteRule ^(.*)$ api.php [QSA,L]
+DirectoryIndex login.html
